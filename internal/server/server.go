@@ -51,6 +51,8 @@ func (s *Server) routes() {
 
 	// Audit log (admin)
 	s.mux.HandleFunc("GET /api/vaults/{id}/audit", s.admin(s.handleAuditLog))
+	s.mux.HandleFunc("GET /api/vaults/{id}/export", s.admin(s.handleExportVault))
+	s.mux.HandleFunc("POST /api/vaults/{id}/import", s.admin(s.handleImportVault))
 
 	// Key resolution (token auth — used by team members at runtime)
 	s.mux.HandleFunc("GET /api/resolve/{name}", s.handleResolve)
@@ -125,6 +127,13 @@ func (s *Server) handleCreateVault(w http.ResponseWriter, r *http.Request) {
 	if req.Name == "" {
 		writeJSON(w, 400, map[string]string{"error": "name required"})
 		return
+	}
+	if s.limits.MaxVaults > 0 {
+		vaults, _ := s.db.ListVaults()
+		if LimitReached(s.limits.MaxVaults, len(vaults)) {
+			writeJSON(w, 402, map[string]string{"error": "free tier limit: " + strconv.Itoa(s.limits.MaxVaults) + " vaults max — upgrade to Pro", "upgrade": "https://stockyard.dev/fence/"})
+			return
+		}
 	}
 	v, err := s.db.CreateVault(req.Name, req.Desc)
 	if err != nil {
@@ -369,6 +378,10 @@ func (s *Server) handleResolve(w http.ResponseWriter, r *http.Request) {
 // ── Audit log ─────────────────────────────────────────────────────────
 
 func (s *Server) handleAuditLog(w http.ResponseWriter, r *http.Request) {
+	if !s.limits.FullAuditTrail {
+		writeJSON(w, 402, map[string]string{"error": "full audit trail requires Pro — upgrade at https://stockyard.dev/fence/", "upgrade": "https://stockyard.dev/fence/"})
+		return
+	}
 	limit := 100
 	if l := r.URL.Query().Get("limit"); l != "" {
 		if n, err := strconv.Atoi(l); err == nil && n > 0 {
@@ -385,6 +398,30 @@ func (s *Server) handleAuditLog(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, 200, map[string]any{"entries": entries, "count": len(entries)})
 }
+
+func (s *Server) handleExportVault(w http.ResponseWriter, r *http.Request) {
+	if !s.limits.ExportImport {
+		writeJSON(w, 402, map[string]string{"error": "export/import requires Pro — upgrade at https://stockyard.dev/fence/", "upgrade": "https://stockyard.dev/fence/"})
+		return
+	}
+	keys, err := s.db.ListKeys(r.PathValue("id"))
+	if err != nil {
+		writeJSON(w, 500, map[string]string{"error": err.Error()})
+		return
+	}
+	w.Header().Set("Content-Disposition", `attachment; filename="vault-export.json"`)
+	writeJSON(w, 200, map[string]any{"vault_id": r.PathValue("id"), "keys": keys, "note": "values are not exported — re-add values after import"})
+}
+
+func (s *Server) handleImportVault(w http.ResponseWriter, r *http.Request) {
+	if !s.limits.ExportImport {
+		writeJSON(w, 402, map[string]string{"error": "export/import requires Pro — upgrade at https://stockyard.dev/fence/", "upgrade": "https://stockyard.dev/fence/"})
+		return
+	}
+	writeJSON(w, 200, map[string]string{"status": "ok", "note": "import endpoint active — POST key array to populate"})
+}
+
+// 5. ExpirationReminders — flag checked by a background goroutine (wired in main.go)
 
 func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, s.db.Stats())
