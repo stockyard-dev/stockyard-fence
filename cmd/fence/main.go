@@ -93,6 +93,7 @@ func main() {
 	log.Printf("  API:      http://localhost:%d/api (requires FENCE_ADMIN_KEY)", port)
 	log.Printf("  Resolve:  http://localhost:%d/api/resolve/{key_name} (requires fence token)", port)
 	log.Printf("  Health:   http://localhost:%d/health", port)
+	log.Printf("  Dashboard:  http://localhost:%d/ui", port)
 	log.Printf("")
 
 	srv := server.New(db, port, adminKey, limits)
