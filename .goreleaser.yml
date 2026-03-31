@@ -1,0 +1,47 @@
+version: 2
+
+project_name: stockyard-fence
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: fence
+    main: ./cmd/fence/
+    binary: fence
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: fence
+    builds: [fence]
+    name_template: "fence_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - Merge pull request
+      - Merge branch
