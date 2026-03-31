@@ -12,6 +12,7 @@ import (
 	"strconv"
 
 	"github.com/stockyard-dev/stockyard-fence/internal/server"
+	"github.com/stockyard-dev/stockyard-fence/internal/license"
 	"github.com/stockyard-dev/stockyard-fence/internal/store"
 )
 
@@ -67,6 +68,20 @@ func main() {
 		encKey = h[:]
 	}
 
+	// License validation — offline Ed25519 check, no network call
+	licenseKey := os.Getenv("FENCE_LICENSE_KEY")
+	licInfo, licErr := license.Validate(licenseKey, "fence")
+	if licenseKey != "" && licErr != nil {
+		log.Printf("[license] WARNING: %v — running in free tier", licErr)
+		licInfo = nil
+	}
+	limits := server.LimitsFor(licInfo)
+	if licInfo != nil && licInfo.IsPro() {
+		log.Printf("  License:   Pro (%s)", licInfo.CustomerID)
+	} else {
+		log.Printf("  License:   Free tier (set FENCE_LICENSE_KEY to unlock Pro)")
+	}
+
 	db, err := store.Open(dataDir, encKey)
 	if err != nil {
 		log.Fatalf("database: %v", err)
@@ -80,7 +95,7 @@ func main() {
 	log.Printf("  Health:   http://localhost:%d/health", port)
 	log.Printf("")
 
-	srv := server.New(db, port, adminKey)
+	srv := server.New(db, port, adminKey, limits)
 	if err := srv.Start(); err != nil {
 		log.Fatalf("server: %v", err)
 	}

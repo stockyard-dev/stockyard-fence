@@ -17,10 +17,11 @@ type Server struct {
 	mux      *http.ServeMux
 	port     int
 	adminKey string
+	limits   Limits
 }
 
-func New(db *store.DB, port int, adminKey string) *Server {
-	s := &Server{db: db, mux: http.NewServeMux(), port: port, adminKey: adminKey}
+func New(db *store.DB, port int, adminKey string, limits Limits) *Server {
+	s := &Server{db: db, mux: http.NewServeMux(), port: port, adminKey: adminKey, limits: limits}
 	s.routes()
 	return s
 }
@@ -174,6 +175,13 @@ func (s *Server) handleStoreKey(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 400, map[string]string{"error": "name and value required"})
 		return
 	}
+	if s.limits.MaxKeys > 0 {
+		keys, _ := s.db.ListKeys(vaultID)
+		if LimitReached(s.limits.MaxKeys, len(keys)) {
+			writeJSON(w, 402, map[string]string{"error": "free tier limit: " + strconv.Itoa(s.limits.MaxKeys) + " keys max — upgrade to Pro", "upgrade": "https://stockyard.dev/fence/"})
+			return
+		}
+	}
 	k, err := s.db.StoreKey(vaultID, req.Name, req.Value, req.Provider, req.Notes, req.RotateAt)
 	if err != nil {
 		writeJSON(w, 400, map[string]string{"error": "key name already exists in this vault"})
@@ -228,6 +236,13 @@ func (s *Server) handleAddMember(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Role == "" {
 		req.Role = "reader"
+	}
+	if s.limits.MaxMembers > 0 {
+		members, _ := s.db.ListMembers(vaultID)
+		if LimitReached(s.limits.MaxMembers, len(members)) {
+			writeJSON(w, 402, map[string]string{"error": "free tier limit: " + strconv.Itoa(s.limits.MaxMembers) + " members max — upgrade to Pro", "upgrade": "https://stockyard.dev/fence/"})
+			return
+		}
 	}
 	m, err := s.db.AddMember(vaultID, req.Username, req.Role)
 	if err != nil {
