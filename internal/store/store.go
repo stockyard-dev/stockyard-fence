@@ -493,3 +493,32 @@ func genID(n int) string {
 	rand.Read(b)
 	return hex.EncodeToString(b)
 }
+
+// ExpiringKey is a key that is expiring soon.
+type ExpiringKey struct {
+	ID       int    `json:"id"`
+	Name     string `json:"name"`
+	VaultID  string `json:"vault_id"`
+	RotateAt string `json:"rotate_at"`
+}
+
+// KeysExpiringWithin returns keys whose rotate_at is within the next n days.
+func (db *DB) KeysExpiringWithin(days int) []ExpiringKey {
+	rows, err := db.conn.Query(`
+		SELECT id, name, vault_id, rotate_at FROM secret_keys
+		WHERE rotate_at IS NOT NULL AND rotate_at != ''
+		AND rotate_at <= datetime('now', '+' || ? || ' days')
+		AND rotate_at > datetime('now')
+		ORDER BY rotate_at ASC`, days)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var out []ExpiringKey
+	for rows.Next() {
+		var k ExpiringKey
+		rows.Scan(&k.ID, &k.Name, &k.VaultID, &k.RotateAt)
+		out = append(out, k)
+	}
+	return out
+}

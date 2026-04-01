@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"time"
 	"os"
 	"strconv"
 
@@ -95,6 +96,23 @@ func main() {
 	log.Printf("  Health:   http://localhost:%d/health", port)
 	log.Printf("  Dashboard:  http://localhost:%d/ui", port)
 	log.Printf("")
+
+	// Expiration reminder goroutine — runs daily, logs keys expiring within 7 days
+	if limits.ExpirationReminders {
+		go func() {
+			for {
+				time.Sleep(24 * time.Hour)
+				expiring := db.KeysExpiringWithin(7)
+				for _, k := range expiring {
+					log.Printf("[fence] expiry warning: key %q in vault %s expires %s",
+						k.Name, k.VaultID, k.RotateAt)
+				}
+				if len(expiring) > 0 {
+					log.Printf("[fence] %d key(s) expiring within 7 days", len(expiring))
+				}
+			}
+		}()
+	}
 
 	srv := server.New(db, port, adminKey, limits)
 	if err := srv.Start(); err != nil {
