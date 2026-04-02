@@ -1,9 +1,5 @@
 package server
 
-import "github.com/stockyard-dev/stockyard-fence/internal/license"
-
-// Limits holds the feature limits for the current license tier.
-// All int limits: 0 means unlimited (Pro tier only).
 type Limits struct {
 	MaxKeys int // 0 = unlimited (Pro)
 	MaxMembers int // 0 = unlimited (Pro)
@@ -14,17 +10,9 @@ type Limits struct {
 	ExportImport bool
 }
 
-var freeLimits = Limits{
-		MaxKeys: 10,
-		MaxMembers: 2,
-		MaxVaults: 2,
-		RBACRoles: false,
-		FullAuditTrail: false,
-		ExpirationReminders: false,
-		ExportImport: false,
-}
-
-var proLimits = Limits{
+// DefaultLimits returns fully-unlocked limits for the standalone edition.
+func DefaultLimits() Limits {
+	return Limits{
 		MaxKeys: 0,
 		MaxMembers: 0,
 		MaxVaults: 0,
@@ -33,14 +21,6 @@ var proLimits = Limits{
 		ExpirationReminders: true,
 		ExportImport: true,
 }
-
-// LimitsFor returns the appropriate Limits for the given license info.
-// nil info = no key set = free tier.
-func LimitsFor(info *license.Info) Limits {
-	if info != nil && info.IsPro() {
-		return proLimits
-	}
-	return freeLimits
 }
 
 // LimitReached returns true if the current count meets or exceeds the limit.
