@@ -76,6 +76,10 @@ input:focus,select:focus{border-color:var(--leather)}
   </div>
 </div>
 <div class="main">
+<div id="upgrade-banner" class="upgrade" style="display:none">
+  <strong style="color:var(--cream)">Free tier</strong> — 1 vault, 10 keys. <a href="https://stockyard.dev/fence/" target="_blank">Upgrade to Pro for $4.99/mo →</a>
+</div>
+
 
 <div class="cards">
   <div class="card"><span class="card-val" id="s-vaults">—</span><span class="card-lbl">Vaults</span></div>
@@ -257,6 +261,7 @@ async function revokeToken(id){if(!confirm('Revoke token?'))return;await fetch(A
 
 async function refresh(){await Promise.all([loadStats(),loadVaults()]);if(activeVaultId)await Promise.all([loadKeys(),loadTokens()]);}
 refresh();autoReload(refresh,10000);
+fetch('/api/tier').then(r=>r.json()).then(j=>{if(j.tier==='free'){document.getElementById('upgrade-banner').style.display='block';var b=document.getElementById('tier-badge');if(b){b.className='badge badge-free';b.textContent='Free'}}else{var b=document.getElementById('tier-badge');if(b){b.className='badge badge-pro';b.textContent='Pro'}}}).catch(()=>{var b=document.getElementById('upgrade-banner');if(b)b.style.display='block'});
 </script></body></html>`
 
 func (s *Server) handleUI(w http.ResponseWriter, r *http.Request) {
