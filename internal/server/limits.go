@@ -25,7 +25,7 @@ type Limits struct {
 
 func FreeLimits() Limits {
 	return Limits{
-		MaxKeys: 10, MaxMembers: 2, MaxVaults: 1,
+		MaxKeys: 5, MaxMembers: 2, MaxVaults: 1,
 		RBACRoles: false, FullAuditTrail: false,
 		ExpirationReminders: false, ExportImport: false,
 		Tier: "free",
