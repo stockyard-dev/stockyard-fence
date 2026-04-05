@@ -75,6 +75,7 @@ func main() {
 	}
 	defer db.Close()
 
+	log.Printf("  Questions? hello@stockyard.dev")
 	log.Printf("")
 	log.Printf("  Stockyard Fence %s", version)
 	log.Printf("  API:      http://localhost:%d/api (requires FENCE_ADMIN_KEY)", port)
